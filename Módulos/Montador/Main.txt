@@ -1,0 +1,22 @@
+Main montador
+	Validar argumentos
+	Criar arquivo para programa pré-processado (*.pre) 
+		Pré processamento
+		Retirar comentários
+		Avaliar EQU e IF
+		Emitir mensagem de erro se houver
+		Síntese
+	Criar arquivo objeto (*.obj)
+		Formato texto
+		Se for um módulo deve indicar
+			Tabela de uso
+			Tabela de definições
+			Opcodes
+			Operandos
+			Sem quebra de linha, nem endereço indicado, separados por espaço.
+			Diferentes infos devem ser separadas pelos indicadores Table e Code
+			Seção indicando códigos relativos
+		Se não for módulo
+			Opcodes e operandos sem quebra de linha, nem endereço indicado, separados por espaço, sem indicador da seção Code, sem indicação de absoluto e relativo, sem tabelas.
+
+*Ao usar Space, colocar Zero no código máquina nos endereços reservados*
