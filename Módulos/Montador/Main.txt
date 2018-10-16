@@ -1,5 +1,10 @@
 Main montador
 	Validar argumentos
+		Validar argumentos
+		Validar conteúdos dos argumentos
+		Validar extensão do arquivo
+		Validar o output definido pelo usuário
+
 	Criar arquivo para programa pré-processado (*.pre) 
 		Pré processamento
 		Retirar comentários
