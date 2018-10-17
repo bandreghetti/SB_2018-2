@@ -1,5 +1,4 @@
 *.out
 
-montador
-
 \.vscode/
+\build
