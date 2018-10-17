@@ -4,6 +4,5 @@ mkdir -p build
 
 cd build
 cmake ..
-make
-
+make && \
 mv montador.out ../
