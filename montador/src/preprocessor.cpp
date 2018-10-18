@@ -1,6 +1,7 @@
 #include <preprocessor.hpp>
 
 PreProcessor::PreProcessor(std::string fileName) {
+    this->fileName = fileName;
     std::string asmName = fileName + ".asm";  // input file name
     if (!fileExists(asmName)) {
         std::cout << "File " + asmName + " does not exists\n";
@@ -12,7 +13,7 @@ PreProcessor::PreProcessor(std::string fileName) {
     std::ifstream srcFile;
     srcFile.open(asmName);
     std::string line;
-    unsigned int lineCount = 0;
+    unsigned int lineCount = 1;
     while (getline(srcFile, line)) {
         auto lineTuple = std::make_tuple(lineCount, line);
         srcLines.push_back(lineTuple);
@@ -32,7 +33,37 @@ void PreProcessor::printSource() {
 
 void PreProcessor::printOutput() {
     for (auto lineTuple : outLines) {
+        printf("%3d:", std::get<0>(lineTuple));
+        auto tokens = std::get<1>(lineTuple);
+        for (auto token : tokens) {
+            printf(" %s", token.c_str());
+        }
+        printf("\n");
     }
+}
+
+void PreProcessor::writeOutput() {
+    std::string preName = fileName + ".pre";  // output file name
+    
+    // Read all lines from file
+    std::ofstream outFile;
+    outFile.open(preName);
+    for(auto line : outLines) {
+        auto tokens = std::get<1>(line);
+        for (auto tokenIt = tokens.begin(); tokenIt != tokens.end(); ++tokenIt) {
+            if(std::next(tokenIt) != tokens.end())
+            {
+                outFile << *tokenIt + " ";
+            }
+        }
+        outFile << tokens.back() + "\n";
+    }
+    
+    outFile.close();
+}
+
+std::list<std::tuple<int, std::list<std::string>>> PreProcessor::getOutput() {
+    return outLines;
 }
 
 void PreProcessor::preProcess() {
@@ -49,13 +80,17 @@ void PreProcessor::preProcess() {
         if (!std::all_of(line.begin(), line.end(), isspace)) {
             // Split line in tokens
             auto tokensInLine = tokenize(line);
+            // If no token is found, continue on to the next line
+            if (tokensInLine.empty()) continue;
+            
             auto firstToken = tokensInLine.front();
-            auto secondToken = *std::next(tokensInLine.begin());
 
             // Check if first token is a label
-            if (isSuffix(firstToken, ":")) {
+            if (isSuffix(firstToken, ":") && tokensInLine.size() > 1) {
                 // Check if label is an EQU label
+                auto secondToken = *std::next(tokensInLine.begin());
                 if (secondToken == "EQU") {
+                    firstToken.pop_back();
                     auto equLabel = firstToken;
                     auto equValStr = *std::next(tokensInLine.begin(), 2);
                     auto equVal = atoi(equValStr.c_str());
@@ -65,14 +100,33 @@ void PreProcessor::preProcess() {
                 }
             }
 
-            if (firstToken == "IF" || secondToken == "IF") {
-                // TODO: handle IF directive
+            // Check if any label used is an already set EQU label
+            for (auto tokenIt = tokensInLine.begin(); tokenIt != tokensInLine.end(); ++tokenIt) {
+                if (equMap.count(*tokenIt) > 0) {
+                    *tokenIt = std::to_string(equMap[*tokenIt]);
+                }
             }
 
-            // TODO: finish handling EQU directive
-            // TODO: push_back outTuple to outLines properly
+            // Handle IF labels
+            for (auto tokenIt = tokensInLine.begin(); tokenIt != tokensInLine.end(); ++tokenIt) {
+                if (*tokenIt == "IF") {
+                    auto ifValStr = *std::next(tokenIt);
+                    auto ifVal = atoi(ifValStr.c_str());
+                    while(tokensInLine.back() != "IF") {
+                        tokensInLine.pop_back();
+                    }
+                    tokensInLine.pop_back();
+                    if (ifVal == 0) {
+                        ++lineTupleIt;
+                    }
+                    break;
+                }
+            }
 
-            auto outTuple = std::make_tuple(lineCount, line);
+            if(!tokensInLine.empty()) {
+                auto outLine = std::make_tuple(lineCount, tokensInLine);
+                outLines.push_back(outLine);
+            }
         }
     }
 }

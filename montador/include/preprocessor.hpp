@@ -10,15 +10,16 @@
 
 class PreProcessor {
    private:
-    int error = 0;
     std::string fileName;
     std::list<std::tuple<int, std::string>> srcLines;
     std::list<std::tuple<int, std::list<std::string>>> outLines;
-
    public:
+    int error = 0;
     PreProcessor(std::string fileName);
     ~PreProcessor();
     void printSource();
     void printOutput();
+    void writeOutput();
     void preProcess();
+    std::list<std::tuple<int, std::list<std::string>>> getOutput();
 };

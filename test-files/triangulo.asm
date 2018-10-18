@@ -1,5 +1,6 @@
 ; Programa que calcula a área de um triângulo
 	TRIANGULO: EQU 1 ; teste comentário
+
 SECTION TEXT
 		INPUT		B
 		INPUT		H

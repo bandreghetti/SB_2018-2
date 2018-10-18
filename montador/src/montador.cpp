@@ -17,9 +17,13 @@ int main(int argc, char** argv) {
     string fileName = string(argv[1]); 
 
     PreProcessor pp(fileName);
-
+    if(pp.error) {
+        return -1;
+    }
     // pp.printSource();
     pp.preProcess();
+    pp.printOutput();
+    pp.writeOutput();
 
     string objFile = fileName + ".obj"; // object file output
 
