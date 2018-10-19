@@ -15,4 +15,5 @@ add_executable(montador.out
   montador/src/montador.cpp
   montador/src/utils.cpp
   montador/src/preprocessor.cpp
+  montador/src/assembler.cpp
 )

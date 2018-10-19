@@ -15,7 +15,7 @@ class PreProcessor {
     std::list<std::tuple<int, std::list<std::string>>> outLines;
     int error = 0;
    public:
-    PreProcessor(std::string fileName);
+    PreProcessor(std::string);
     ~PreProcessor();
     int printSource();
     int printOutput();

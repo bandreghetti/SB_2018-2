@@ -4,6 +4,7 @@
 #include <list>
 #include <utils.hpp>
 #include <preprocessor.hpp>
+#include <assembler.hpp>
 
 using namespace std;
 
@@ -13,7 +14,7 @@ int main(int argc, char** argv) {
         << "Usage: montador <file-to-assemble-without-extension>" << endl;
         return -1;
     }
-  
+
     string fileName = string(argv[1]); 
 
     PreProcessor pp(fileName);
@@ -22,12 +23,17 @@ int main(int argc, char** argv) {
     }
     auto err = pp.preProcess();
     if (err) {
-        cout << "Something wrong happened\n";
+        cout << "Something wrong happened during pre-processing\n";
         return -1;
     }
     pp.writeOutput();
+    Assembler assembler(fileName, pp.getOutput());
 
-    string objFile = fileName + ".obj"; // object file output
+    err = assembler.firstPass();
+    if (err) {
+        cout << "first pass error: " + assembler.getErrorMessage() << std::endl;
+        return -1;
+    }
 
     return 0;
 }

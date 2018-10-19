@@ -102,7 +102,7 @@ int PreProcessor::preProcess() {
             auto firstToken = tokensInLine.front();
 
             // Check if first token is a label
-            if (isSuffix(firstToken, ":") && tokensInLine.size() > 1) {
+            if (isSuffix(firstToken, ":")) {
                 firstToken.pop_back();
                 
                 // Check if any label used is an already set EQU label
