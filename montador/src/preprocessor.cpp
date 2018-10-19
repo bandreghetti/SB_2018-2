@@ -24,14 +24,21 @@ PreProcessor::PreProcessor(std::string fileName) {
 
 PreProcessor::~PreProcessor() {}
 
-void PreProcessor::printSource() {
+int PreProcessor::printSource() {
+    if (error != 0) {
+        return error;
+    }
     for (auto lineTuple : srcLines) {
         printf("%3d:%s\n", std::get<0>(lineTuple),
                std::get<1>(lineTuple).c_str());
     }
+    return 0;
 }
 
-void PreProcessor::printOutput() {
+int PreProcessor::printOutput() {
+    if (error != 0) {
+        return error;
+    }
     for (auto lineTuple : outLines) {
         printf("%3d:", std::get<0>(lineTuple));
         auto tokens = std::get<1>(lineTuple);
@@ -40,9 +47,13 @@ void PreProcessor::printOutput() {
         }
         printf("\n");
     }
+    return 0;
 }
 
-void PreProcessor::writeOutput() {
+int PreProcessor::writeOutput() {
+    if (error != 0) {
+        return error;
+    }
     std::string preName = fileName + ".pre";  // output file name
     
     // Read all lines from file
@@ -58,15 +69,20 @@ void PreProcessor::writeOutput() {
         }
         outFile << tokens.back() + "\n";
     }
-    
     outFile.close();
+    
+    return 0;
 }
 
 std::list<std::tuple<int, std::list<std::string>>> PreProcessor::getOutput() {
     return outLines;
 }
 
-void PreProcessor::preProcess() {
+int PreProcessor::preProcess() {
+    if (error != 0) {
+        return error;
+    }
+
     std::map<std::string, int> equMap;
     for (auto lineTupleIt = srcLines.begin(); lineTupleIt != srcLines.end();
          ++lineTupleIt) {
@@ -87,16 +103,26 @@ void PreProcessor::preProcess() {
 
             // Check if first token is a label
             if (isSuffix(firstToken, ":") && tokensInLine.size() > 1) {
+                firstToken.pop_back();
+                
+                // Check if any label used is an already set EQU label
+                if (equMap.count(firstToken) > 0) {
+                    error = 1;
+                    return error;
+                }
+                
                 // Check if label is an EQU label
-                auto secondToken = *std::next(tokensInLine.begin());
-                if (secondToken == "EQU") {
-                    firstToken.pop_back();
-                    auto equLabel = firstToken;
-                    auto equValStr = *std::next(tokensInLine.begin(), 2);
-                    auto equVal = atoi(equValStr.c_str());
-                    auto equTuple = std::make_tuple(equLabel, equVal);
-                    equMap[equLabel] = equVal;
-                    continue;
+                auto secondTokenIt = std::next(tokensInLine.begin());
+                if (secondTokenIt != tokensInLine.end()){
+                    auto secondToken = *std::next(tokensInLine.begin());
+                    if (secondToken == "EQU") {
+                        auto equLabel = firstToken;
+                        auto equValStr = *std::next(tokensInLine.begin(), 2);
+                        auto equVal = atoi(equValStr.c_str());
+                        auto equTuple = std::make_tuple(equLabel, equVal);
+                        equMap[equLabel] = equVal;
+                        continue;
+                    }
                 }
             }
 
@@ -129,4 +155,9 @@ void PreProcessor::preProcess() {
             }
         }
     }
+    return 0;
+}
+
+int PreProcessor::getError() {
+    return error;
 }

@@ -13,13 +13,14 @@ class PreProcessor {
     std::string fileName;
     std::list<std::tuple<int, std::string>> srcLines;
     std::list<std::tuple<int, std::list<std::string>>> outLines;
-   public:
     int error = 0;
+   public:
     PreProcessor(std::string fileName);
     ~PreProcessor();
-    void printSource();
-    void printOutput();
-    void writeOutput();
-    void preProcess();
+    int printSource();
+    int printOutput();
+    int writeOutput();
+    int preProcess();
+    int getError();
     std::list<std::tuple<int, std::list<std::string>>> getOutput();
 };

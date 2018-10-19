@@ -2,6 +2,7 @@
 	TRIANGULO: EQU 1 ; teste comentário
 
 SECTION TEXT
+Main:
 		INPUT		B
 		INPUT		H
 		LOAD		B

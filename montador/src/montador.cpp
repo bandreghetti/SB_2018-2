@@ -17,12 +17,14 @@ int main(int argc, char** argv) {
     string fileName = string(argv[1]); 
 
     PreProcessor pp(fileName);
-    if(pp.error) {
+    if(pp.getError()) {
         return -1;
     }
-    // pp.printSource();
-    pp.preProcess();
-    pp.printOutput();
+    auto err = pp.preProcess();
+    if (err) {
+        cout << "Something wrong happened\n";
+        return -1;
+    }
     pp.writeOutput();
 
     string objFile = fileName + ".obj"; // object file output

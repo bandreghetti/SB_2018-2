@@ -15,6 +15,9 @@ std::list<std::string> tokenize(const std::string s)
    tokenStream.str(reduce(s));
    while (std::getline(tokenStream, token, ' '))
    {
+      for(auto &c : token) {
+          c = std::toupper(c);
+      }
       tokens.push_back(token);
    }
    return tokens;
