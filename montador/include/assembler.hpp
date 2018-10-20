@@ -6,26 +6,32 @@
 #include <string>
 #include <tuple>
 #include <regex>
+#include <set>
 
 #include <utils.hpp>
 
 class Assembler {
     private:
+        std::regex intRegEx = std::regex("(\\+|-)?[0-9]+");
+        std::regex hexRegEx = std::regex("(0x)[0-9a-fA-F]{1,4}");
+        std::regex natRegEx = std::regex("[0-9]+");
         std::string fileName;
         std::list<std::tuple<int, std::list<std::string>>> srcLines;
         std::map<std::string, int> symbolsMap;
+        std::set<std::string> externSymbols;
+        std::list<std::tuple<std::string, int>> useTable;
         std::list<unsigned int> relative;
         std::list<short> machineCode;
         enum {
             ADD = 1,
-            SUB, 
+            SUB,
             MULT,
-            DIV, 
-            JMP, 
+            DIV,
+            JMP,
             JMPN,
-            JMPP, 
-            JMPZ, 
-            COPY, 
+            JMPP,
+            JMPZ,
+            COPY,
             LOAD,
             STORE,
             INPUT,
@@ -63,11 +69,14 @@ class Assembler {
             {"STORE", 2},
             {"INPUT", 2},
             {"OUTPUT", 2},
-            {"STOP", 1}
+            {"STOP", 1},
+            {"BEGIN", 0},
+            {"EXTERN", 0}
         };
         int error = 0;
         std::string errMsg;
         std::string genErrMsg(int, std::string);
+        void handleArgument(int, std::list<std::string>::iterator*, std::list<std::string>::iterator, int*);
     public:
         Assembler(std::string, std::list<std::tuple<int, std::list<std::string>>>);
         int printSource();

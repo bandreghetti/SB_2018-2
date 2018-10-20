@@ -28,6 +28,14 @@ int Assembler::writeOutput() {
     std::ofstream outFile;
     outFile.open(objName);
 
+    // Write TABLE USE section to object file
+    outFile << "TABLE USE\n";
+    for (auto use : useTable) {
+        auto rot = std::get<0>(use);
+        auto addr = std::get<1>(use);
+        outFile << rot + ' ' + std::to_string(addr) + '\n';
+    }
+
     // Write RELATIVE section to object file
     outFile << "RELATIVE\n";
     for (auto rel = relative.begin(); rel != relative.end(); ++rel) {
@@ -103,8 +111,8 @@ int Assembler::firstPass() {
         auto tokenIt = line.begin();
 
         // If line begins with label
-        if (isSuffix(line.front(), ":")) {
-            auto label = line.front();
+        auto label = line.front();
+        if (isSuffix(label, ":")) {
             label.pop_back(); // Remove ':' from the label
 
             // Check if label matches valid regular expression
@@ -137,8 +145,7 @@ int Assembler::firstPass() {
                 auto nextTokenIt = std::next(tokenIt);
                 if (nextTokenIt != line.end()) {
                     // Since an argument was given, check if it is valid
-                    auto intRegEx = std::regex("[0-9]+");
-                    if (std::regex_match(*nextTokenIt, intRegEx)) {
+                    if (std::regex_match(*nextTokenIt, natRegEx)) {
                         memCount += std::atoi((*nextTokenIt).c_str());
                     } else {
                         errMsg = genErrMsg(lineCount, "invalid argument for SPACE directive: " + *nextTokenIt);
@@ -149,6 +156,17 @@ int Assembler::firstPass() {
                     // Since no argument was given, reserve only one space
                     memCount += 1;
                 }
+            } else if (token == "EXTERN") {
+                // Check if label was defined
+                if (label == "") {
+                    errMsg = genErrMsg(lineCount, "EXTERN directive requires label");
+                    error = 1;
+                    return error;
+                }
+                // Add label to externSymbols set
+                externSymbols.insert(label);
+                // Set label address to 0 (its true address will be set by linker)
+                symbolsMap[label] = 0;
             } else {
                 // Since instruction/directive was not SPACE, check if it is defined
                 if(memSpaceMap.count(token) > 0) {
@@ -180,6 +198,7 @@ int Assembler::secondPass() {
         auto lineCount = std::get<0>(*lineIt);
 
         // Handle section change
+        // TODO: TEXT section should always come first
         if (line.front() == "SECTION") {
             // Section lines must always have 2 tokens (SECTION <section_name>)
             if (line.size() != 2) {
@@ -209,82 +228,100 @@ int Assembler::secondPass() {
         // Get iterator to the first token in line
         auto tokenIt = line.begin();
 
-        // If line begins with label, ignore it
+        // Check if line begins with label
         if (isSuffix(line.front(), ":")) {
+            auto label = line.front();
+            label.pop_back();
+
             ++tokenIt;
         }
 
         // If there is an instruction/directive in this line
         if (tokenIt != line.end()) {
             auto op = *tokenIt;
+            // Handle EXTERN keyword no matter where it is in the code
+            if (op == "EXTERN") {
+                // EXTERN does no require arguments
+                if(std::next(tokenIt) != line.end()) {
+                    errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
+                    error = 1;
+                    return error;
+                }
+                // Continue on to next line
+                continue;
+            }
             // Handle operators according to which section we are in
             switch (section) {
             case BSS:
                 // SPACE is the only supported directive in BSS section
-                if (op == "SPACE") {
-                    int nSpaces;
-                    // Set nSpaces var according to argument given
-                    if (std::next(tokenIt) != line.end()) {
-                        ++tokenIt;
-                        nSpaces = std::atoi((*tokenIt).c_str());
-                    } else {
-                        nSpaces = 1;
-                    }
-                    // Reserve memory space according to nSpaces
-                    for (;nSpaces > 0; --nSpaces) {
-                        ++memCount;
-                        machineCode.push_back(0);
-                    }
-                    // Check if there's any unexpected token after SPACE
-                    if (std::next(tokenIt) != line.end()) {
-                        errMsg = genErrMsg(lineCount, "found " + *std::next(tokenIt) + ", expected newline");
-                        error = 1;
-                        return error;
-                    }
-                } else {
+                if (op != "SPACE") {
                     errMsg = genErrMsg(lineCount, "non-SPACE operator/directive in BSS (uninitialized data) section");
                     error = 1;
                     return error;
                 }
+
+                int nSpaces;
+                // Set nSpaces var according to argument given
+                if (std::next(tokenIt) != line.end()) {
+                    ++tokenIt;
+                    nSpaces = std::atoi((*tokenIt).c_str());
+                } else {
+                    nSpaces = 1;
+                }
+
+                // Reserve memory space according to nSpaces
+                for (;nSpaces > 0; --nSpaces) {
+                    ++memCount;
+                    machineCode.push_back(0);
+                }
+
+                // Check if there's any unexpected token after SPACE
+                if (std::next(tokenIt) != line.end()) {
+                    errMsg = genErrMsg(lineCount, "found " + *std::next(tokenIt) + ", expected newline");
+                    error = 1;
+                    return error;
+                }
+
                 break;
             case DATA:
                 // CONST is the only supported directive in BSS section
-                if (op == "CONST") {
-                    // Check if CONST's required argument was given
-                    if (std::next(tokenIt) != line.end()) {
-                        ++tokenIt;
-                        auto intRegEx = std::regex("(\\+|-)?[0-9]+");
-                        auto hexRegEx = std::regex("(0x)[0-9a-fA-F]{1,4}");
-                        // Check if given argument is decimal or hexadecimal
-                        if(std::regex_match(*tokenIt, intRegEx)) {
-                            machineCode.push_back(std::atoi((*tokenIt).c_str()));
-                        } else if (std::regex_match(*tokenIt, hexRegEx)) {
-                            // TODO: find out how to convert hex to int an then to string
-                        } else {
-                            errMsg = genErrMsg(lineCount, "invalid immediate " + *tokenIt);
-                            error = 1;
-                            return error;
-                        }
-
-                        // Reserve memory space for constant value
-                        ++memCount;
-
-                        // CONST expects only a single value
-                        if (std::next(tokenIt) != line.end()) {
-                            errMsg = genErrMsg(lineCount, "found " + *std::next(tokenIt) + ", expected newline");
-                            error = 1;
-                            return error;
-                        }
-                    } else {
-                        errMsg = genErrMsg(lineCount, "newline found, expected immediate matching regular expression (0x|+|-)?[0-9a-fA-F]");
-                        error = 1;
-                        return error;
-                    }
-                } else {
+                if (op != "CONST") {
                     errMsg = genErrMsg(lineCount, "non-CONST operator/directive in DATA section");
                     error = 1;
                     return error;
                 }
+
+                // Check if CONST's required argument was given
+                if (std::next(tokenIt) == line.end()) {
+                    errMsg = genErrMsg(lineCount, "newline found, expected immediate matching regular expression (0x|+|-)?[0-9a-fA-F]");
+                    error = 1;
+                    return error;
+                }
+
+                // Advance tokenIt to argument
+                ++tokenIt;
+
+                // Check if given argument is decimal or hexadecimal
+                if(std::regex_match(*tokenIt, intRegEx)) {
+                    machineCode.push_back(std::atoi((*tokenIt).c_str()));
+                } else if (std::regex_match(*tokenIt, hexRegEx)) {
+                    // TODO: find out how to convert hex to int an then to string
+                } else {
+                    errMsg = genErrMsg(lineCount, "invalid immediate " + *tokenIt);
+                    error = 1;
+                    return error;
+                }
+
+                // Reserve memory space for constant value
+                ++memCount;
+
+                // CONST expects only a single value
+                if (std::next(tokenIt) != line.end()) {
+                    errMsg = genErrMsg(lineCount, "found " + *std::next(tokenIt) + ", expected newline");
+                    error = 1;
+                    return error;
+                }
+
                 break;
             case TEXT:
                 // TEXT section cannot have SPACE or CONST directives
@@ -293,129 +330,102 @@ int Assembler::secondPass() {
                     error = 1;
                     return error;
                 }
+
                 // Check if instruction is defined in instructions map
-                if (opcodeMap.count(op) > 0) {
-                    auto opcode = opcodeMap.at(op);
-
-                    // Add instruction opcode to code
-                    machineCode.push_back(opcode);
-                    ++memCount;
-
-                    // Handle arguments according to which instruction was given
-                    switch (opcode) {
-                    case ADD:
-                    case SUB:
-                    case MULT:
-                    case DIV:
-                    case JMP:
-                    case JMPN:
-                    case JMPP:
-                    case JMPZ:
-                    case LOAD:
-                    case STORE:
-                    case INPUT:
-                    case OUTPUT:
-                        // These instructions take a single defined symbol as argument
-                        // Check if argument was given
-                        if (std::next(tokenIt) != line.end()) {
-                            ++tokenIt;
-                            auto operand = *tokenIt;
-                            // Check if argument is defined in symbols map
-                            if (symbolsMap.count(operand) > 0) {
-                                auto memOperand = symbolsMap.at(operand);
-                                // TODO: handle LABEL+N case
-                                // Include relative symbol address to machine code
-                                machineCode.push_back(memOperand);
-                                relative.push_back(memCount);
-                                ++memCount;
-                            } else {
-                                errMsg = genErrMsg(lineCount, "unknown symbol " + operand);
-                                error = 1;
-                                return error;
-                            }
-                            // Check if more than 1 argument was given
-                            if (std::next(tokenIt) != line.end()) {
-                                errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
-                                error = 1;
-                                return error;
-                            }
-                        } else {
-                            errMsg = genErrMsg(lineCount, "expecting 1 operand, found none");
-                            error = 1;
-                            return error;
-                        }
-                        break;
-                    case COPY:
-                        // COPY takes 2 arguments, possibly comma-separated
-                        // Check if first argument was given
-                        if (std::next(tokenIt) != line.end()) {
-                            ++tokenIt;
-                            auto operand = *tokenIt;
-                            // Remove comma if needed
-                            if (isSuffix(operand, ",")) {
-                                operand.pop_back();
-                            }
-                            // Check if symbol is defined in symbols table
-                            if (symbolsMap.count(operand) > 0) {
-                                auto memOperand = symbolsMap.at(operand);
-                                // TODO: handle LABEL+N case
-                                // Include relative symbol address to machine code
-                                machineCode.push_back(memOperand);
-                                relative.push_back(memCount);
-                                ++memCount;
-                            } else {
-                                errMsg = genErrMsg(lineCount, "unknown symbol " + operand);
-                                error = 1;
-                                return error;
-                            }
-                            // Check if second argument was given
-                            if (std::next(tokenIt) != line.end()) {
-                                ++tokenIt;
-                                auto operand = *tokenIt;
-                                // Check if symbol is defined in symbols table
-                                if (symbolsMap.count(operand) > 0) {
-                                    auto memOperand = symbolsMap.at(operand);
-                                    // TODO: handle LABEL+N case
-                                    // Include relative symbol address to machine code
-                                    machineCode.push_back(memOperand);
-                                    relative.push_back(memCount);
-                                    ++memCount;
-                                } else {
-                                    errMsg = genErrMsg(lineCount, "unknown symbol " + operand);
-                                    error = 1;
-                                    return error;
-                                }
-                                // Check if more than 2 arguments were given
-                                if (std::next(tokenIt) != line.end()) {
-                                    errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
-                                    error = 1;
-                                    return error;
-                                }
-                            } else {
-                                errMsg = genErrMsg(lineCount, "expecting 2 operands, found 1");
-                                error = 1;
-                                return error;
-                            }
-                        } else {
-                            errMsg = genErrMsg(lineCount, "expecting 2 operands, found none");
-                            error = 1;
-                            return error;
-                        }
-                        break;
-                    case STOP:
-                        // STOP does not take any arguments
-                        // Check if an argument was given
-                        if (std::next(tokenIt) != line.end()) {
-                            errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
-                            error = 1;
-                            return error;
-                        }
-                        break;
-                    }
-                } else {
+                if (opcodeMap.count(op) == 0) {
                     errMsg = genErrMsg(lineCount, "unknown " + op + " operator");
                     error = 1;
                     return error;
+                }
+                short opcode = opcodeMap.at(op);
+
+                // Add instruction opcode to code
+                machineCode.push_back(opcode);
+                ++memCount;
+
+                // Handle arguments according to which instruction was given
+                switch (opcode) {
+                case ADD:
+                case SUB:
+                case MULT:
+                case DIV:
+                case JMP:
+                case JMPN:
+                case JMPP:
+                case JMPZ:
+                case LOAD:
+                case STORE:
+                case INPUT:
+                case OUTPUT:
+                    // These instructions take a single defined symbol as argument
+
+                    // Check if argument was given
+                    if (std::next(tokenIt) == line.end()) {
+                        errMsg = genErrMsg(lineCount, "expecting 1 operand, found none");
+                        error = 1;
+                        return error;
+                    }
+
+                    // Advance tokenIt to argument
+                    ++tokenIt;
+
+                    // Check if argument is defined in symbols map
+                    handleArgument(lineCount, &tokenIt, line.end(), &memCount);
+                    if (error) return error;
+
+                    // Check if more than 1 argument was given
+                    if (std::next(tokenIt) != line.end()) {
+                        errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
+                        error = 1;
+                        return error;
+                    }
+
+                    break;
+                case COPY:
+                    // COPY takes 2 arguments, possibly comma-separated
+                    // Check if first argument was given
+                    if (std::next(tokenIt) == line.end()) {
+                        errMsg = genErrMsg(lineCount, "expecting 2 operands, found none");
+                        error = 1;
+                        return error;
+                    }
+
+                    // Advance tokenIt to first argument
+                    ++tokenIt;
+
+                    // Call handleArgument to update machineCode, relative and useTable
+                    handleArgument(lineCount, &tokenIt, line.end(), &memCount);
+                    if (error) return error;
+
+                    // Check if second argument was given
+                    if (std::next(tokenIt) == line.end()) {
+                        errMsg = genErrMsg(lineCount, "expecting 2 operands, found 1");
+                        error = 1;
+                        return error;
+                    }
+                    // Advance tokenIt to second argument
+                    ++tokenIt;
+
+                    // Call handleArgument to update machineCode, relative and useTable
+                    handleArgument(lineCount, &tokenIt, line.end(), &memCount);
+                    if (error) return error;
+
+                    // Check if more than 2 arguments were given
+                    if (std::next(tokenIt) != line.end()) {
+                        errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
+                        error = 1;
+                        return error;
+                    }
+                    break;
+                case STOP:
+                    // STOP does not take any arguments
+                    // Check if an argument was given
+                    if (std::next(tokenIt) != line.end()) {
+                        errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
+                        error = 1;
+                        return error;
+                    }
+                    break;
                 }
                 break;
             }
@@ -435,4 +445,68 @@ int Assembler::getError() {
 
 std::string Assembler::genErrMsg(int lineCount, std::string message) {
     return "line " + std::to_string(lineCount) + ": " + message;
+}
+
+void Assembler::handleArgument(int lineCount, std::list<std::string>::iterator* tokenItPtr, std::list<std::string>::iterator lineEnd, int* memCountPtr) {
+    auto operand = **tokenItPtr;
+
+    // Check if operator is COPY (takes two arguments, need to handle comma)
+    bool isCopy = false;
+    if (*std::prev(*tokenItPtr) == "COPY") {
+        isCopy = true;
+        // Remove comma if needed
+        if (isSuffix(operand, ",")) {
+            operand.pop_back();
+        }
+    }
+
+    // Check if argument is defined in symbols map
+    if (symbolsMap.count(operand) == 0) {
+        errMsg = genErrMsg(lineCount, "unknown symbol " + operand);
+        error = 1;
+        return;
+    }
+    auto memOperand = symbolsMap.at(operand);
+    // Handle LABEL + N case
+    if (std::next(*tokenItPtr) != lineEnd) {
+        ++*tokenItPtr;
+        // Check if next token is a +
+        auto plusSign = **tokenItPtr;
+        if (plusSign != "+") {
+            errMsg = genErrMsg(lineCount, "expecting + or newline, found " + plusSign);
+            error = 1;
+            return;
+        }
+        // Check if there is a token after +
+        if (std::next(*tokenItPtr) == lineEnd) {
+            errMsg = genErrMsg(lineCount, "expecting decimal number, found newline");
+            error = 1;
+            return;
+        }
+        ++*tokenItPtr;
+        auto N = **tokenItPtr;
+        // Handle comma if necessary
+        if (isCopy && isSuffix(N, ",")) {
+            N.pop_back();
+        }
+        // Check if token after + is a valid number
+        if (!std::regex_match(N, natRegEx)) {
+            errMsg = genErrMsg(lineCount, "expecting decimal number, found " + N);
+            error = 1;
+            return;
+        }
+        // Since everything went ok, increment memOperand
+        memOperand += std::atoi(N.c_str());
+    }
+    // Include relative symbol address to machine code
+    machineCode.push_back(memOperand);
+    // If operand is an extern symbol, add its address to use table
+    if (externSymbols.count(operand) > 0) {
+        auto useTuple = std::make_tuple(operand, *memCountPtr);
+        useTable.push_back(useTuple);
+    // Else, add its address to relative list
+    } else {
+        relative.push_back(*memCountPtr);
+    }
+    ++*memCountPtr;
 }
