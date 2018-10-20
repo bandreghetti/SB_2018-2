@@ -23,6 +23,7 @@ class Assembler {
         std::list<std::tuple<std::string, int>> definitionTable;
         std::list<unsigned int> relative;
         std::list<short> machineCode;
+        bool isModule = false;
         enum {
             ADD = 1,
             SUB,

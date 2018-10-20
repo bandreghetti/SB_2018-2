@@ -28,34 +28,37 @@ int Assembler::writeOutput() {
     std::ofstream outFile;
     outFile.open(objName);
 
-    // Write TABLE USE section to object file
-    outFile << "TABLE USE\n";
-    for (auto use : useTable) {
-        auto rot = std::get<0>(use);
-        auto addr = std::get<1>(use);
-        outFile << rot + ' ' + std::to_string(addr) + '\n';
-    }
-
-    // Write TABLE DEFINITION section to object file
-    outFile << "TABLE DEFINITION\n";
-    for (auto def : definitionTable) {
-        auto rot = std::get<0>(def);
-        auto addr = std::get<1>(def);
-        outFile << rot + ' ' + std::to_string(addr) + '\n';
-    }
-
-    // Write RELATIVE section to object file
-    outFile << "RELATIVE\n";
-    for (auto rel = relative.begin(); rel != relative.end(); ++rel) {
-        if(std::next(rel) != relative.end())
-        {
-            outFile << std::to_string(*rel) + " ";
+    if (isModule) {
+        // Write TABLE USE section to object file
+        outFile << "TABLE USE\n";
+        for (auto use : useTable) {
+            auto rot = std::get<0>(use);
+            auto addr = std::get<1>(use);
+            outFile << rot + ' ' + std::to_string(addr) + '\n';
         }
-    }
-    outFile << std::to_string(relative.back()) + "\n";
 
-    // Write CODE section to object file
-    outFile << "CODE\n";
+        // Write TABLE DEFINITION section to object file
+        outFile << "TABLE DEFINITION\n";
+        for (auto def : definitionTable) {
+            auto rot = std::get<0>(def);
+            auto addr = std::get<1>(def);
+            outFile << rot + ' ' + std::to_string(addr) + '\n';
+        }
+
+        // Write RELATIVE section to object file
+        outFile << "RELATIVE\n";
+        for (auto rel = relative.begin(); rel != relative.end(); ++rel) {
+            if(std::next(rel) != relative.end())
+            {
+                outFile << std::to_string(*rel) + " ";
+            }
+        }
+        outFile << std::to_string(relative.back()) + "\n";
+
+        // Write CODE section to object file
+        outFile << "CODE\n";
+    }
+
     for (auto code = machineCode.begin(); code != machineCode.end(); ++code) {
         if(std::next(code) != machineCode.end())
         {
@@ -82,7 +85,7 @@ int Assembler::firstPass() {
     }
     int memCount = 0;
     int section = NONE;
-    bool inModule = false;
+    bool moduleEnded = false;
     bool hadText = false;
 
     for (auto lineIt = srcLines.begin(); lineIt != srcLines.end(); ++lineIt)
@@ -186,18 +189,32 @@ int Assembler::firstPass() {
                 symbolsMap[label] = 0;
             // If token is BEGIN, handle errors and control flags as needed
             } else if (token == "BEGIN") {
-                // Check if already in a module
-                if (inModule) {
-                    errMsg = genErrMsg(lineCount, "cannot BEGIN module inside another module");
+                // Check if already in a section
+                if (section != NONE) {
+                    errMsg = genErrMsg(lineCount, "cannot begin module inside a section");
                     error = 1;
                     return error;
                 }
-                inModule = true;
-                hadText = false;
+                // Check if already in a module
+                if (isModule) {
+                    if (moduleEnded) {
+                        errMsg = genErrMsg(lineCount, "cannot have two modules in the same file");
+                    } else {
+                        errMsg = genErrMsg(lineCount, "cannot BEGIN module inside another module");
+                    }
+                    error = 1;
+                    return error;
+                }
+                isModule = true;
             } else if (token == "END") {
                 // Check if in a module
-                if (!inModule) {
-                    errMsg = genErrMsg(lineCount, "cannot END module outside a module");
+                if (!isModule) {
+                    errMsg = genErrMsg(lineCount, "module not begun");
+                    error = 1;
+                    return error;
+                }
+                if (moduleEnded) {
+                    errMsg = genErrMsg(lineCount, "cannot end module twice");
                     error = 1;
                     return error;
                 }
@@ -207,8 +224,8 @@ int Assembler::firstPass() {
                     error = 1;
                     return error;
                 }
-                inModule = false;
                 section = NONE;
+                moduleEnded = true;
             } else {
                 // Since instruction/directive was not handled above, check if it is defined
                 if(memSpaceMap.count(token) == 0) {
@@ -284,7 +301,12 @@ int Assembler::secondPass() {
             auto op = *tokenIt;
             // Handle EXTERN keyword no matter where it is in the code
             if (op == "EXTERN") {
-                // EXTERN does no require arguments
+                if (!isModule) {
+                    errMsg = genErrMsg(lineCount, "cannot use EXTERN directive outside a module");
+                    error = 1;
+                    return error;
+                }
+                // EXTERN does not require arguments
                 if (std::next(tokenIt) != line.end()) {
                     errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
                     error = 1;
@@ -295,6 +317,12 @@ int Assembler::secondPass() {
             }
             // Handle PUBLIC keyword no matter where it is in the code
             if (op == "PUBLIC") {
+                if (!isModule) {
+                    errMsg = genErrMsg(lineCount, "cannot use PUBLIC directive outside a module");
+                    error = 1;
+                    return error;
+                }
+
                 // PUBLIC requires a single symbol as argument
                 if (std::next(tokenIt) == line.end()) {
                     errMsg = genErrMsg(lineCount, "expecting symbol, found newline");

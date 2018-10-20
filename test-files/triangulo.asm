@@ -1,11 +1,7 @@
 ; Programa que calcula a área de um triângulo
 	TRIANGULO: EQU 1 ; teste comentário
 
-MOD_TRIANGULO:	BEGIN
-PUBLIC MOD_TRIANGULO
 SECTION TEXT
-Main:
-Func:	EXTERN
 		INPUT		B + 1
 		INPUT		H
 		LOAD		B + 1
@@ -14,19 +10,10 @@ Func:	EXTERN
 		DIV		DOIS
 		STORE		R
 		OUTPUT	R
-		COPY B H
-		COPY B, H
-		COPY B + 1, H
-		COPY B, H + 1
-		COPY B + 1, H + 1
-		JMP Func
 		STOP
 SECTION BSS
-	PUBLIC B
-	PUBLIC H
 	B:		SPACE		2
 	H:		SPACE
 	R:		SPACE
 	SECTION DATA
 	DOIS:	CONST		0x02
-				END
