@@ -467,13 +467,18 @@ void Assembler::handleArgument(int lineCount, std::list<std::string>::iterator* 
         return;
     }
     auto memOperand = symbolsMap.at(operand);
+
     // Handle LABEL + N case
-    if (std::next(*tokenItPtr) != lineEnd) {
+    if (std::next(*tokenItPtr) != lineEnd && symbolsMap.count(*std::next(*tokenItPtr)) == 0) {
         ++*tokenItPtr;
         // Check if next token is a +
         auto plusSign = **tokenItPtr;
         if (plusSign != "+") {
-            errMsg = genErrMsg(lineCount, "expecting + or newline, found " + plusSign);
+            if (isCopy) {
+                errMsg = genErrMsg(lineCount, "expecting + or known symbol, found " + plusSign);
+            } else {
+                errMsg = genErrMsg(lineCount, "expecting + or newline, found " + plusSign);
+            }
             error = 1;
             return;
         }

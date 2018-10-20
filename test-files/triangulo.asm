@@ -12,11 +12,11 @@ Func:	EXTERN
 		DIV		DOIS
 		STORE		R
 		OUTPUT	R
-;		COPY B H
-;		COPY B, H
+		COPY B H
+		COPY B, H
 		COPY B + 1, H
-;		COPY B, H + 1
-;		COPY B + 1, H + 1
+		COPY B, H + 1
+		COPY B + 1, H + 1
 		JMP Func
 		STOP
 SECTION BSS
