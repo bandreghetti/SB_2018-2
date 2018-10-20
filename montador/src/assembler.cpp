@@ -36,6 +36,14 @@ int Assembler::writeOutput() {
         outFile << rot + ' ' + std::to_string(addr) + '\n';
     }
 
+    // Write TABLE DEFINITION section to object file
+    outFile << "TABLE DEFINITION\n";
+    for (auto def : definitionTable) {
+        auto rot = std::get<0>(def);
+        auto addr = std::get<1>(def);
+        outFile << rot + ' ' + std::to_string(addr) + '\n';
+    }
+
     // Write RELATIVE section to object file
     outFile << "RELATIVE\n";
     for (auto rel = relative.begin(); rel != relative.end(); ++rel) {
@@ -242,7 +250,7 @@ int Assembler::secondPass() {
             // Handle EXTERN keyword no matter where it is in the code
             if (op == "EXTERN") {
                 // EXTERN does no require arguments
-                if(std::next(tokenIt) != line.end()) {
+                if (std::next(tokenIt) != line.end()) {
                     errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
                     error = 1;
                     return error;
@@ -250,6 +258,49 @@ int Assembler::secondPass() {
                 // Continue on to next line
                 continue;
             }
+            // Handle PUBLIC keyword no matter where it is in the code
+            if (op == "PUBLIC") {
+                // PUBLIC requires a single symbol as argument
+                if (std::next(tokenIt) == line.end()) {
+                    errMsg = genErrMsg(lineCount, "expecting symbol, found newline");
+                    error = 1;
+                    return error;
+                }
+
+                // Advance tokenIt to symbol
+                ++tokenIt;
+                auto symbol = *tokenIt;
+
+                // Check if symbol is extern
+                if (externSymbols.count(symbol) > 0) {
+                    errMsg = genErrMsg(lineCount, "cannot make extern symbol public");
+                    error = 1;
+                    return error;
+                }
+
+                // Check if symbol was defined
+                if (symbolsMap.count(symbol) == 0) {
+                    errMsg = genErrMsg(lineCount, "unknown symbol " + symbol);
+                    error = 1;
+                    return error;
+                }
+
+                // Add public symbol to definitions table
+                auto definitionTuple = std::make_tuple(symbol, symbolsMap.at(symbol));
+                definitionTable.push_back(definitionTuple);
+
+                // PUBLIC expect exactly 1 argument
+                if (std::next(tokenIt) != line.end()) {
+                    errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
+                    error = 1;
+                    return error;
+                }
+
+                // Continue on to next line
+                continue;
+            }
+
+
             // Handle operators according to which section we are in
             switch (section) {
             case BSS:

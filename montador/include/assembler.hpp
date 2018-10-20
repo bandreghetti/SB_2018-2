@@ -20,6 +20,7 @@ class Assembler {
         std::map<std::string, int> symbolsMap;
         std::set<std::string> externSymbols;
         std::list<std::tuple<std::string, int>> useTable;
+        std::list<std::tuple<std::string, int>> definitionTable;
         std::list<unsigned int> relative;
         std::list<short> machineCode;
         enum {
@@ -71,7 +72,7 @@ class Assembler {
             {"OUTPUT", 2},
             {"STOP", 1},
             {"BEGIN", 0},
-            {"EXTERN", 0}
+            {"PUBLIC", 0}
         };
         int error = 0;
         std::string errMsg;
