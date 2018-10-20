@@ -1,6 +1,8 @@
 ; Programa que calcula a área de um triângulo
 	TRIANGULO: EQU 1 ; teste comentário
 
+MOD_TRIANGULO:	BEGIN
+PUBLIC MOD_TRIANGULO
 SECTION TEXT
 Main:
 Func:	EXTERN
@@ -26,4 +28,5 @@ SECTION BSS
 	H:		SPACE
 	R:		SPACE
 	SECTION DATA
-	DOIS:	CONST		2
+	DOIS:	CONST		0x02
+				END

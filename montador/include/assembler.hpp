@@ -13,7 +13,7 @@
 class Assembler {
     private:
         std::regex intRegEx = std::regex("(\\+|-)?[0-9]+");
-        std::regex hexRegEx = std::regex("(0x)[0-9a-fA-F]{1,4}");
+        std::regex hexRegEx = std::regex("0(x|X)[0-9a-f]{1,4}");
         std::regex natRegEx = std::regex("[0-9]+");
         std::string fileName;
         std::list<std::tuple<int, std::list<std::string>>> srcLines;
@@ -71,7 +71,6 @@ class Assembler {
             {"INPUT", 2},
             {"OUTPUT", 2},
             {"STOP", 1},
-            {"BEGIN", 0},
             {"PUBLIC", 0}
         };
         int error = 0;

@@ -82,6 +82,8 @@ int Assembler::firstPass() {
     }
     int memCount = 0;
     int section = NONE;
+    bool inModule = false;
+    bool hadText = false;
 
     for (auto lineIt = srcLines.begin(); lineIt != srcLines.end(); ++lineIt)
     {
@@ -98,7 +100,17 @@ int Assembler::firstPass() {
             }
             // Change the section variable according to the second token
             if (line.back() == "TEXT") {
+                if (hadText) {
+                    errMsg = genErrMsg(lineCount, "SECTION TEXT must not be split inside a module");
+                    error = 1;
+                    return error;
+                }
                 section = TEXT;
+                hadText = true;
+            } else if (section == NONE) {
+                errMsg = genErrMsg(lineCount, "SECTION TEXT must be the first first inside a module");
+                error = 1;
+                return error;
             } else if (line.back() == "DATA") {
                 section = DATA;
             } else if (line.back() == "BSS") {
@@ -109,10 +121,6 @@ int Assembler::firstPass() {
                 return error;
             }
             continue;
-        } else if (section == NONE) {
-            errMsg = genErrMsg(lineCount, "pre-processed code should begin with a SECTION line");
-            error = 1;
-            return error;
         }
 
         // Get iterator to the first token in line
@@ -164,6 +172,7 @@ int Assembler::firstPass() {
                     // Since no argument was given, reserve only one space
                     memCount += 1;
                 }
+            // If token is EXTERN, add label to externSymbols set
             } else if (token == "EXTERN") {
                 // Check if label was defined
                 if (label == "") {
@@ -175,18 +184,49 @@ int Assembler::firstPass() {
                 externSymbols.insert(label);
                 // Set label address to 0 (its true address will be set by linker)
                 symbolsMap[label] = 0;
+            // If token is BEGIN, handle errors and control flags as needed
+            } else if (token == "BEGIN") {
+                // Check if already in a module
+                if (inModule) {
+                    errMsg = genErrMsg(lineCount, "cannot BEGIN module inside another module");
+                    error = 1;
+                    return error;
+                }
+                inModule = true;
+                hadText = false;
+            } else if (token == "END") {
+                // Check if in a module
+                if (!inModule) {
+                    errMsg = genErrMsg(lineCount, "cannot END module outside a module");
+                    error = 1;
+                    return error;
+                }
+                // Check if TEXT section was declared
+                if (!hadText) {
+                    errMsg = genErrMsg(lineCount, "module must have a TEXT section");
+                    error = 1;
+                    return error;
+                }
+                inModule = false;
+                section = NONE;
             } else {
-                // Since instruction/directive was not SPACE, check if it is defined
-                if(memSpaceMap.count(token) > 0) {
-                    // If defined, reserve space for the instruction/directive accordingly
-                    memCount += memSpaceMap.at(token);
-                } else {
+                // Since instruction/directive was not handled above, check if it is defined
+                if(memSpaceMap.count(token) == 0) {
                     errMsg = genErrMsg(lineCount, "instruction/directive " + token + " not defined");
                     error = 1;
                     return error;
                 }
+                // If defined, reserve space for the instruction/directive accordingly
+                memCount += memSpaceMap.at(token);
             }
         }
+    }
+
+    // Check if TEXT section was declared
+    if (!hadText) {
+        errMsg = "TEXT section not found";
+        error = 1;
+        return error;
     }
 
     return 0;
@@ -206,7 +246,6 @@ int Assembler::secondPass() {
         auto lineCount = std::get<0>(*lineIt);
 
         // Handle section change
-        // TODO: TEXT section should always come first
         if (line.front() == "SECTION") {
             // Section lines must always have 2 tokens (SECTION <section_name>)
             if (line.size() != 2) {
@@ -227,10 +266,6 @@ int Assembler::secondPass() {
                 return error;
             }
             continue;
-        } else if (section == NONE) {
-            errMsg = genErrMsg(lineCount, "pre-processed code should begin with a SECTION line");
-            error = 1;
-            return error;
         }
 
         // Get iterator to the first token in line
@@ -300,6 +335,10 @@ int Assembler::secondPass() {
                 continue;
             }
 
+            // Handle BEGIN and END keywords no matter where they are in the code
+            if (op == "BEGIN" || op == "END") {
+                continue;
+            }
 
             // Handle operators according to which section we are in
             switch (section) {
@@ -344,7 +383,7 @@ int Assembler::secondPass() {
 
                 // Check if CONST's required argument was given
                 if (std::next(tokenIt) == line.end()) {
-                    errMsg = genErrMsg(lineCount, "newline found, expected immediate matching regular expression (0x|+|-)?[0-9a-fA-F]");
+                    errMsg = genErrMsg(lineCount, "newline found, expected decimal or hexadecimal (with 0x prefix) immediate");
                     error = 1;
                     return error;
                 }
@@ -356,7 +395,11 @@ int Assembler::secondPass() {
                 if(std::regex_match(*tokenIt, intRegEx)) {
                     machineCode.push_back(std::atoi((*tokenIt).c_str()));
                 } else if (std::regex_match(*tokenIt, hexRegEx)) {
-                    // TODO: find out how to convert hex to int an then to string
+                    // Convert to lower case if hexadecimal
+                    for(auto &c : *tokenIt) {
+                        c = std::tolower(c);
+                    }
+                    machineCode.push_back(std::stoi(*tokenIt, 0, 16));
                 } else {
                     errMsg = genErrMsg(lineCount, "invalid immediate " + *tokenIt);
                     error = 1;
