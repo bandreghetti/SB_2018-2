@@ -17,3 +17,7 @@ add_executable(montador.out
   montador/src/preprocessor.cpp
   montador/src/assembler.cpp
 )
+
+add_executable(ligador.out
+  ligador/src/ligador.cpp
+)
