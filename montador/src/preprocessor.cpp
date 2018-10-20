@@ -56,7 +56,7 @@ int PreProcessor::writeOutput() {
     }
     std::string preName = fileName + ".pre";  // output file name
     
-    // Read all lines from file
+    // Write to pre-processed file
     std::ofstream outFile;
     outFile.open(preName);
     for(auto line : outLines) {

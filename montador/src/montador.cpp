@@ -35,5 +35,17 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    err = assembler.secondPass();
+    if (err) {
+        cout << "second pass error: " + assembler.getErrorMessage() << std::endl;
+        return -1;
+    }
+
+    err = assembler.writeOutput();
+    if (err) {
+        cout << "write error: " + assembler.getErrorMessage() << std::endl;
+        return -1;
+    }
+
     return 0;
 }
