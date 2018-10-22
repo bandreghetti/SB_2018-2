@@ -23,5 +23,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    linker.printTables();
+
     return 0;
 }

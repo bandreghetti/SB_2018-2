@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <regex>
 
 bool fileExists(std::string filename);
 std::list<std::string> tokenize(const std::string s);
