@@ -139,7 +139,7 @@ int Linker::parseTables() {
 int Linker::printTables() {
     for (auto file : srcFiles) {
         auto fileName = file.first;
-        std::cout << fileName + '\n';
+        std::cout << fileName + " size: " + std::to_string(sizeMap[fileName]) + '\n';
         auto useMap = useTables[fileName];
         std::cout << "TABLE USE\n";
         for (auto kvPair : useMap) {
