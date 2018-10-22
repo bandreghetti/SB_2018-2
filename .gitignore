@@ -1,6 +1,7 @@
 *.out
 *.pre
 *.obj
+*.e
 
 \.vscode/
 \build

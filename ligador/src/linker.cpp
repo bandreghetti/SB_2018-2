@@ -176,7 +176,7 @@ int Linker::link() {
             auto useList = kvPair.second;
 
             for (auto useAddr : useList) {
-                code[useAddr] = globalDefTable[label];
+                code[useAddr] += globalDefTable[label];
             }
         }
 
