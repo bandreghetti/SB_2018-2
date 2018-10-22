@@ -1,8 +1,8 @@
 # SB_2018-2
 
-Aluno: Bruno Andreghetti Dantas                 Matrícula: 15/0007060
+# Aluno: Bruno Andreghetti Dantas                 Matrícula: 15/0007060
 
-Aluna: Sara Gomes Cardoso                       Matrícula: 15/0021712
+# Aluna: Sara Gomes Cardoso                       Matrícula: 15/0021712
 ---------------------------------------------------------------------
 
 ## Comandos Gerais
