@@ -176,6 +176,11 @@ int Linker::link() {
             auto useList = kvPair.second;
 
             for (auto useAddr : useList) {
+                // Check if symbol is defined
+                if (globalDefTable.count(label) == 0) {
+                    errMsg = genErrMsg(fileName, "undefined symbol " + label);
+                    return error;
+                }
                 code[useAddr] += globalDefTable[label];
             }
         }
@@ -269,5 +274,5 @@ int Linker::getError() {
 
 std::string Linker::genErrMsg(std::string fileName, std::string message) {
     error = 1;
-    return "error in file " + fileName + ": " + message;
+    return "error in file \"" + fileName + "\": " + message + "\n";
 }
