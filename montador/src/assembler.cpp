@@ -111,7 +111,7 @@ int Assembler::firstPass() {
                 section = TEXT;
                 hadText = true;
             } else if (section == NONE) {
-                errMsg = genErrMsg(lineCount, "SECTION TEXT must be the first first inside a module");
+                errMsg = genErrMsg(lineCount, "SECTION TEXT must be the first section inside a module");
                 error = 1;
                 return error;
             } else if (line.back() == "DATA") {

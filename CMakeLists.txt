@@ -6,6 +6,8 @@ add_definitions(-g)
 
 include_directories(
   montador/include/
+  ligador/include/
+  common/include/
 )
 
 link_directories(
@@ -13,11 +15,13 @@ link_directories(
 
 add_executable(montador.out
   montador/src/montador.cpp
-  montador/src/utils.cpp
   montador/src/preprocessor.cpp
   montador/src/assembler.cpp
+  common/src/utils.cpp
 )
 
 add_executable(ligador.out
   ligador/src/ligador.cpp
+  ligador/src/linker.cpp
+  common/src/utils.cpp
 )
