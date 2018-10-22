@@ -23,6 +23,7 @@ class Assembler {
         std::list<std::tuple<std::string, int>> definitionTable;
         std::list<unsigned int> relative;
         std::list<short> machineCode;
+        std::set<std::string> zeroList;
         bool isModule = false;
         enum {
             ADD = 1,
@@ -57,7 +58,6 @@ class Assembler {
             {"STOP", 14}
         };
         const std::map<std::string, int> memSpaceMap = {
-            {"CONST", 1},
             {"ADD", 2},
             {"SUB", 2},
             {"MULT", 2},

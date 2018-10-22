@@ -24,7 +24,12 @@ int Assembler::writeOutput() {
     if (error != 0) {
         return error;
     }
-    std::string objName = fileName + ".obj";  // output file name
+    std::string objName;
+    if (isModule) {
+        objName = fileName + ".obj";  // output file name
+    } else {
+        objName = fileName + ".e";  // output file name
+    }
     std::ofstream outFile;
     outFile.open(objName);
 
@@ -174,6 +179,37 @@ int Assembler::firstPass() {
                 } else {
                     // Since no argument was given, reserve only one space
                     memCount += 1;
+                }
+            // If token is CONST, check if it is zero for handling division by 0
+            } else if (token == "CONST") {
+                // Check whether CONST was given an argument or not
+                auto nextTokenIt = std::next(tokenIt);
+                if (nextTokenIt == line.end()) {
+                    errMsg = genErrMsg(lineCount, "expecting decimal or hexadecimal number, found newline");
+                    return error;
+                }
+
+                int constVal;
+
+                // Check if given argument is decimal or hexadecimal
+                if(std::regex_match(*nextTokenIt, intRegEx)) {
+                    constVal = std::stoi(*nextTokenIt);
+                } else if (std::regex_match(*nextTokenIt, hexRegEx)) {
+                    // Convert to lower case if hexadecimal
+                    for(auto &c : *nextTokenIt) {
+                        c = std::tolower(c);
+                    }
+                    constVal = std::stoi(*nextTokenIt, 0, 16);
+                } else {
+                    errMsg = genErrMsg(lineCount, "invalid immediate " + *tokenIt);
+                    error = 1;
+                    return error;
+                }
+                memCount += 1;
+
+                // Add label to zero values to check for zero division
+                if (constVal == 0) {
+                    zeroList.insert(label);
                 }
             // If token is EXTERN, add label to externSymbols set
             } else if (token == "EXTERN") {
@@ -405,14 +441,6 @@ int Assembler::secondPass() {
                 // CONST is the only supported directive in BSS section
                 if (op != "CONST") {
                     errMsg = genErrMsg(lineCount, "non-CONST operator/directive in DATA section");
-                    error = 1;
-                    return error;
-                }
-
-                // Check if CONST's required argument was given
-                if (std::next(tokenIt) == line.end()) {
-                    errMsg = genErrMsg(lineCount, "newline found, expected decimal or hexadecimal (with 0x prefix) immediate");
-                    error = 1;
                     return error;
                 }
 
@@ -430,7 +458,6 @@ int Assembler::secondPass() {
                     machineCode.push_back(std::stoi(*tokenIt, 0, 16));
                 } else {
                     errMsg = genErrMsg(lineCount, "invalid immediate " + *tokenIt);
-                    error = 1;
                     return error;
                 }
 
@@ -440,7 +467,6 @@ int Assembler::secondPass() {
                 // CONST expects only a single value
                 if (std::next(tokenIt) != line.end()) {
                     errMsg = genErrMsg(lineCount, "found " + *std::next(tokenIt) + ", expected newline");
-                    error = 1;
                     return error;
                 }
 
@@ -449,14 +475,12 @@ int Assembler::secondPass() {
                 // TEXT section cannot have SPACE or CONST directives
                 if (op == "SPACE" || op == "CONST") {
                     errMsg = genErrMsg(lineCount, op + " directive in TEXT section");
-                    error = 1;
                     return error;
                 }
 
                 // Check if instruction is defined in instructions map
                 if (opcodeMap.count(op) == 0) {
                     errMsg = genErrMsg(lineCount, "unknown " + op + " operator");
-                    error = 1;
                     return error;
                 }
                 short opcode = opcodeMap.at(op);
@@ -467,10 +491,10 @@ int Assembler::secondPass() {
 
                 // Handle arguments according to which instruction was given
                 switch (opcode) {
+                case DIV:
                 case ADD:
                 case SUB:
                 case MULT:
-                case DIV:
                 case JMP:
                 case JMPN:
                 case JMPP:
@@ -484,12 +508,16 @@ int Assembler::secondPass() {
                     // Check if argument was given
                     if (std::next(tokenIt) == line.end()) {
                         errMsg = genErrMsg(lineCount, "expecting 1 operand, found none");
-                        error = 1;
                         return error;
                     }
 
                     // Advance tokenIt to argument
                     ++tokenIt;
+
+                    if (opcode == DIV && zeroList.count(*tokenIt) > 0) {
+                        errMsg = genErrMsg(lineCount, "division by zero");
+                        return error;
+                    }
 
                     // Check if argument is defined in symbols map
                     handleArgument(lineCount, &tokenIt, line.end(), &memCount);
@@ -498,7 +526,6 @@ int Assembler::secondPass() {
                     // Check if more than 1 argument was given
                     if (std::next(tokenIt) != line.end()) {
                         errMsg = genErrMsg(lineCount, "expecting newline, found " + *std::next(tokenIt));
-                        error = 1;
                         return error;
                     }
 
@@ -508,7 +535,6 @@ int Assembler::secondPass() {
                     // Check if first argument was given
                     if (std::next(tokenIt) == line.end()) {
                         errMsg = genErrMsg(lineCount, "expecting 2 operands, found none");
-                        error = 1;
                         return error;
                     }
 
@@ -566,6 +592,7 @@ int Assembler::getError() {
 }
 
 std::string Assembler::genErrMsg(int lineCount, std::string message) {
+    error = 1;
     return "line " + std::to_string(lineCount) + ": " + message;
 }
 
