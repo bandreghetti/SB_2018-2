@@ -156,6 +156,12 @@ int Assembler::firstPass() {
 
             // If everything's ok, add symbol to symbols table
             symbolsMap[label] = memCount;
+
+            // If label is from sections DATA or BSS, make sure code is not jumping to it
+            if (section == DATA || section == BSS) {
+                invalidJumpList.insert(label);
+            }
+
             // Advance to second token in line
             ++tokenIt;
         }
@@ -514,8 +520,19 @@ int Assembler::secondPass() {
                     // Advance tokenIt to argument
                     ++tokenIt;
 
+                    // Check division by zero
                     if (opcode == DIV && zeroList.count(*tokenIt) > 0) {
                         errMsg = genErrMsg(lineCount, "division by zero");
+                        return error;
+                    }
+
+                    // Check invalid jump
+                    if ((opcode == JMP ||
+                         opcode == JMPN ||
+                         opcode == JMPP ||
+                         opcode == JMPZ)
+                         && invalidJumpList.count(*tokenIt) > 0) {
+                        errMsg = genErrMsg(lineCount, "jump to label " + *tokenIt + " in invalid section");
                         return error;
                     }
 

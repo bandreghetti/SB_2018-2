@@ -24,6 +24,7 @@ class Assembler {
         std::list<unsigned int> relative;
         std::list<short> machineCode;
         std::set<std::string> zeroList;
+        std::set<std::string> invalidJumpList;
         bool isModule = false;
         enum {
             ADD = 1,
