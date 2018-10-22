@@ -1,6 +1,8 @@
 #include <linker.hpp>
 
 Linker::Linker(std::list<std::string> filesToLink) {
+    outputName = filesToLink.front();
+
     for (auto fileName : filesToLink) {
         std::string objName = fileName + ".obj";  // object file name
         if (!fileExists(objName)) {
@@ -46,11 +48,12 @@ int Linker::parseTables() {
         return error;
     }
 
+    unsigned int byteOffset = 0;
     for (auto file : srcFiles) {
         auto fileName = file.first;
 
-        std::map<std::string, std::list<int>> useTable;
-        std::map<std::string, int> defTable;
+        std::map<std::string, std::list<unsigned int>> useTable;
+        std::map<std::string, unsigned int> defTable;
 
         auto lines = file.second;
         auto section = NONE;
@@ -90,7 +93,7 @@ int Linker::parseTables() {
                 }
 
                 auto label = line[0];
-                auto addr = std::stoi(line[1]);
+                unsigned int addr = std::stoi(line[1]);
 
                 if (section == USE) {
                     // TODO: check for repeating address
@@ -119,9 +122,9 @@ int Linker::parseTables() {
                         return error;
                     }
 
-                    auto addrNum = std::stoi(addr);
+                    int addrNum = std::stoi(addr);
                     if (section == REL) {
-                        relativeList[fileName].push_back(addrNum);
+                        relativeListMap[fileName].push_back((unsigned int)addrNum);
                     } else if (section == CODE) {
                         machineCode[fileName].push_back(addrNum);
                     }
@@ -131,12 +134,63 @@ int Linker::parseTables() {
         useTables[fileName] = useTable;
         defTables[fileName] = defTable;
         sizeMap[fileName] = machineCode[fileName].size();
+        byteOffsetMap[fileName] = byteOffset;
+        byteOffset += machineCode[fileName].size();
+    }
+
+    return 0;
+}
+
+int Linker::link() {
+    if (error) {
+        return error;
+    }
+
+    // Build global definition table
+    std::map<std::string, unsigned int> globalDefTable;
+    for (auto file : srcFiles) {
+        auto fileName = file.first;
+
+        for (auto kvPair : defTables[fileName]) {
+            auto label = kvPair.first;
+            auto addr = kvPair.second + byteOffsetMap[fileName];
+            globalDefTable[label] = addr;
+        }
+    }
+
+    // Apply correction to relative addresses
+    for (auto file : srcFiles) {
+        auto fileName = file.first;
+
+        // Copy file's machine code
+        std::vector<int> code = machineCode[fileName];
+
+        // Fix relative addresses
+        for (auto relAddr : relativeListMap[fileName]) {
+            code[relAddr] += byteOffsetMap[fileName];
+        }
+
+        // Resolve cross-references
+        for (auto kvPair : useTables[fileName]) {
+            auto label = kvPair.first;
+            auto useList = kvPair.second;
+
+            for (auto useAddr : useList) {
+                code[useAddr] = globalDefTable[label];
+            }
+        }
+
+        linkedCode.insert(linkedCode.end(), code.begin(), code.end());
     }
 
     return 0;
 }
 
 int Linker::printTables() {
+    if (error) {
+        return error;
+    }
+
     for (auto file : srcFiles) {
         auto fileName = file.first;
         std::cout << fileName + " size: " + std::to_string(sizeMap[fileName]) + '\n';
@@ -161,7 +215,7 @@ int Linker::printTables() {
         }
 
         std::cout << "RELATIVE\n";
-        auto relList = relativeList[fileName];
+        auto relList = relativeListMap[fileName];
         for (auto relAddr : relList) {
             std::cout << std::to_string(relAddr) + ' ';
         }
@@ -174,6 +228,35 @@ int Linker::printTables() {
         }
         std::cout << "\n\n";
     }
+}
+
+int Linker::printOutput() {
+    if (error) {
+        return error;
+    }
+
+    for (auto word : linkedCode) {
+        std::cout << std::to_string(word) + ' ';
+    }
+    std::cout << '\n';
+    return 0;
+}
+
+int Linker::writeOutput() {
+    if (error) {
+        return error;
+    }
+
+    // Write executable file
+    std::ofstream outFile;
+    outFile.open(outputName + ".e");
+    for (auto word : linkedCode) {
+        outFile << std::to_string(word) + ' ';
+    }
+    outFile << '\n';
+    outFile.close();
+
+    return 0;
 }
 
 std::string Linker::getErrorMessage() {

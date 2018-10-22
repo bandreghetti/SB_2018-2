@@ -20,10 +20,19 @@ int main(int argc, char** argv) {
     int err;
     err = linker.parseTables();
     if (err) {
+        std::cout << linker.getErrorMessage();
+        return -1;
+    }
+
+    err = linker.link();
+    if (err) {
+        std::cout << linker.getErrorMessage();
         return -1;
     }
 
     linker.printTables();
+    linker.printOutput();
+    linker.writeOutput();
 
     return 0;
 }
