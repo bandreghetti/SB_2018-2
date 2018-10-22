@@ -28,7 +28,7 @@ Linker::Linker(std::list<std::string> filesToLink) {
 
             fileLines.push_back(tokens);
         }
-        srcFiles.push_back(std::make_tuple(objName, fileLines));
+        srcFiles[objName] = fileLines;
         objFile.close();
     }
 }
@@ -47,12 +47,12 @@ int Linker::parseTables() {
     }
 
     for (auto file : srcFiles) {
-        auto fileName = std::get<0>(file);
+        auto fileName = file.first;
 
         std::map<std::string, std::list<int>> useTable;
         std::map<std::string, int> defTable;
 
-        auto lines = std::get<1>(file);
+        auto lines = file.second;
         auto section = NONE;
         for (auto line : lines) {
             // Handle section change
@@ -93,8 +93,8 @@ int Linker::parseTables() {
                 auto addr = std::stoi(line[1]);
 
                 if (section == USE) {
-                    useTable[label].push_back(addr);
                     // TODO: check for repeating address
+                    useTable[label].push_back(addr);
                 } else if (section == DEF) {
                     // Check for local redefition
                     if (defTable.count(label) > 0) {
@@ -111,25 +111,37 @@ int Linker::parseTables() {
                     defTable[label] = addr;
                     definedSymbols.insert(label);
                 }
-            } else if (section == REL) {
+            } else if (section == REL || section == CODE) {
+                for (auto addr : line) {
+                    // Check if addr is valid
+                    if (!std::regex_match(addr, natRegEx)) {
+                        errMsg = genErrMsg(fileName, "invalid memory address in RELATIVE section: " + addr);
+                        return error;
+                    }
 
-            } else if (section == CODE) {
-
+                    auto addrNum = std::stoi(addr);
+                    if (section == REL) {
+                        relativeList[fileName].push_back(addrNum);
+                    } else if (section == CODE) {
+                        machineCode[fileName].push_back(addrNum);
+                    }
+                }
             }
         }
         useTables[fileName] = useTable;
         defTables[fileName] = defTable;
+        sizeMap[fileName] = machineCode[fileName].size();
     }
 
     return 0;
 }
 
 int Linker::printTables() {
-    std::cout << "USE TABLES\n";
-    for (auto useTable : useTables) {
-        auto fileName = std::get<0>(useTable);
+    for (auto file : srcFiles) {
+        auto fileName = file.first;
         std::cout << fileName + '\n';
-        auto useMap = std::get<1>(useTable);
+        auto useMap = useTables[fileName];
+        std::cout << "TABLE USE\n";
         for (auto kvPair : useMap) {
             auto label = kvPair.first;
             std::cout << label + ':';
@@ -139,6 +151,28 @@ int Linker::printTables() {
             }
             std::cout << std::endl;
         }
+
+        std::cout << "TABLE DEFINITION\n";
+        auto defMap = defTables[fileName];
+        for (auto kvPair : defMap) {
+            auto label = kvPair.first;
+            auto addr = kvPair.second;
+            std::cout << label + ": " + std::to_string(addr) + '\n';
+        }
+
+        std::cout << "RELATIVE\n";
+        auto relList = relativeList[fileName];
+        for (auto relAddr : relList) {
+            std::cout << std::to_string(relAddr) + ' ';
+        }
+        std::cout << '\n';
+
+        std::cout << "CODE\n";
+        auto code = machineCode[fileName];
+        for (auto codeVal : code) {
+            std::cout << std::to_string(codeVal) + ' ';
+        }
+        std::cout << "\n\n";
     }
 }
 
