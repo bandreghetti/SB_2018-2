@@ -3,10 +3,14 @@ Aluno: Bruno Andreghetti Dantas                 Matrícula: 15/0007060
 Aluna: Sara Gomes Cardoso                       Matrícula: 15/0021712
 
 ---------------------------------------------------------------------
+## Versões requeridas
+
+* Sistema Operacional: `Ubuntu 16.04.4 LTS (Xenial Xerus)`
+* cmake: `VERSION 2.8.3`
 
 ## Comandos Gerais
 
-* Para compilar os programas de tradução 'montador.cpp' e 'ligador.cpp':
+* Para compilar os programas de tradução `montador.cpp` e `ligador.cpp`:
 
 `$ ./compileProject.sh`
 
