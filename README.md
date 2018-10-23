@@ -47,3 +47,10 @@ Para os arquivos testes fornecidos:
 $ ./ligador.out test-files/<arquivo1> test-files/<arquivo2> test-files/<arquivo3> test-files/<arquivo4>
 
 ```
+## Simulador
+
+* Para simular os arquivos (.e) gerados pelo ligador:
+```
+$ ./simulador <arquivo.e>
+```
+Deve-se atribuir algum valor de entrada, por linha de comando, quando houver inputs no código.
