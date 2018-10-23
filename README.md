@@ -6,7 +6,8 @@ Aluna: Sara Gomes Cardoso                       Matrícula: 15/0021712
 ## Versões requeridas
 
 * Sistema Operacional: `Ubuntu 16.04.4 LTS (Xenial Xerus)`
-* cmake: `VERSION 2.8.3`
+* gcc: `gcc (Ubuntu 5.4.0-6ubuntu1~16.04.10) 5.4.0 20160609`
+* cmake: `VERSION 3.5.1`
 
 ## Comandos Gerais
 
