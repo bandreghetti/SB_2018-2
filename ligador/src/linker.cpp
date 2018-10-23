@@ -51,13 +51,11 @@ int Linker::parseTables() {
     }
 
     unsigned int byteOffset = 0;
-    for (auto file : srcFiles) {
-        auto fileName = file.first;
-
+    for (auto fileName : srcFileNames) {
         std::map<std::string, std::list<unsigned int>> useTable;
         std::map<std::string, unsigned int> defTable;
 
-        auto lines = file.second;
+        auto lines = srcFiles[fileName];
         auto section = NONE;
         for (auto line : lines) {
             // Handle section change
@@ -194,8 +192,7 @@ int Linker::printTables() {
         return error;
     }
 
-    for (auto file : srcFiles) {
-        auto fileName = file.first;
+    for (auto fileName : srcFileNames) {
         std::cout << fileName + " size: " + std::to_string(sizeMap[fileName]) + '\n';
         auto useMap = useTables[fileName];
         std::cout << "TABLE USE\n";

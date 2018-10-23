@@ -52,25 +52,19 @@ int Assembler::writeOutput() {
 
         // Write RELATIVE section to object file
         outFile << "RELATIVE\n";
-        for (auto rel = relative.begin(); rel != relative.end(); ++rel) {
-            if(std::next(rel) != relative.end())
-            {
-                outFile << std::to_string(*rel) + " ";
-            }
+        for (auto rel : relative) {
+            outFile << std::to_string(rel) + ' ';
         }
-        outFile << std::to_string(relative.back()) + "\n";
+        if (!relative.empty()) outFile << '\n';
 
         // Write CODE section to object file
         outFile << "CODE\n";
     }
 
-    for (auto code = machineCode.begin(); code != machineCode.end(); ++code) {
-        if(std::next(code) != machineCode.end())
-        {
-            outFile << std::to_string(*code) + " ";
-        }
+    for (auto code : machineCode) {
+        outFile << std::to_string(code) + " ";
     }
-    outFile << std::to_string(machineCode.back()) + "\n";
+    if (!machineCode.empty()) outFile << '\n';
 
     outFile.close();
 

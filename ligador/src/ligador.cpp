@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    linker.printTables();
     linker.writeOutput();
 
     return 0;
