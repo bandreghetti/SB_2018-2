@@ -19,6 +19,7 @@ class Linker {
 
         std::string outputName;
         std::map<std::string, std::list<std::vector<std::string>>> srcFiles;
+        std::list<std::string> srcFileNames;
 
         std::map<std::string, std::map<std::string, std::list<unsigned int>>> useTables;
         std::set<std::string> definedSymbols;

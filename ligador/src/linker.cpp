@@ -31,6 +31,8 @@ Linker::Linker(std::list<std::string> filesToLink) {
             fileLines.push_back(tokens);
         }
         srcFiles[objName] = fileLines;
+        srcFileNames.push_back(objName);
+
         objFile.close();
     }
 }
@@ -148,9 +150,7 @@ int Linker::link() {
 
     // Build global definition table
     std::map<std::string, unsigned int> globalDefTable;
-    for (auto file : srcFiles) {
-        auto fileName = file.first;
-
+    for (auto fileName : srcFileNames) {
         for (auto kvPair : defTables[fileName]) {
             auto label = kvPair.first;
             auto addr = kvPair.second + byteOffsetMap[fileName];
@@ -159,9 +159,7 @@ int Linker::link() {
     }
 
     // Apply correction to relative addresses
-    for (auto file : srcFiles) {
-        auto fileName = file.first;
-
+    for (auto fileName : srcFileNames) {
         // Copy file's machine code
         std::vector<int> code = machineCode[fileName];
 
