@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(SB2018-2)
 
-add_definitions(-std=c++14)
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -static")
+
+add_definitions(-std=c++11)
 add_definitions(-g)
 
 include_directories(

@@ -228,6 +228,8 @@ int Linker::printTables() {
         }
         std::cout << "\n\n";
     }
+
+    return 0;
 }
 
 int Linker::printOutput() {
